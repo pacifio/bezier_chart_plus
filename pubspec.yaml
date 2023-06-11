@@ -1,7 +1,7 @@
 name: bezier_chart_plus
 description: Beautiful curvy charts for flutter.
 version: 0.0.1
-homepage:
+homepage: https://github.com/pacifio/bezier_chart_plus
 
 environment:
   sdk: ">=3.0.2 <4.0.0"
