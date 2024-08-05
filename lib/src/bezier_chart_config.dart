@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 enum BezierChartScale {
   hourly,
   weekly,
+  weeklyPeriod,
   monthly,
   yearly,
 

@@ -319,7 +319,28 @@ class BezierChartState extends State<BezierChart>
         );
         _checkMissingValues(newDate);
       }
-    } else if (scale == BezierChartScale.monthly) {
+    } else if (scale == BezierChartScale.weeklyPeriod) {
+      DateTime startDate = DateTime(
+        widget.fromDate!.year,
+        widget.fromDate!.month,
+        widget.fromDate!.day,
+      );
+      DateTime endDate = DateTime(
+        widget.toDate!.year,
+        widget.toDate!.month,
+        widget.toDate!.day,
+      );
+      for (int i = 0;
+      (startDate.isBefore(endDate) || areEqualDates(startDate, endDate));
+      i++) {
+        _xAxisDataPoints.add(
+          DataPoint<DateTime>(value: (i * 5).toDouble(), xAxis: startDate),
+        );
+        _checkMissingValues(startDate);
+        startDate = DateTime(startDate.year, startDate.month, startDate.day + 7);
+      }
+    }
+    else if (scale == BezierChartScale.monthly) {
       DateTime startDate = DateTime(
         widget.fromDate!.year,
         widget.fromDate!.month,
@@ -380,6 +401,10 @@ class BezierChartState extends State<BezierChart>
         horizontalSpacing = constraints.maxWidth / 7;
         return _xAxisDataPoints.length * (horizontalSpacing * _currentScale) -
             horizontalPadding / 2;
+      } else if (scale == BezierChartScale.weeklyPeriod) {
+        horizontalSpacing = constraints.maxWidth / 7;
+        return _xAxisDataPoints.length * (horizontalSpacing * _currentScale) -
+            horizontalPadding / 2;
       } else if (scale == BezierChartScale.monthly) {
         horizontalSpacing = constraints.maxWidth / 12;
         return _xAxisDataPoints.length * (horizontalSpacing * _currentScale) -
@@ -417,7 +442,14 @@ class BezierChartState extends State<BezierChart>
             (dp.xAxis as DateTime).month == widget.selectedDate!.month &&
             (dp.xAxis as DateTime).day == widget.selectedDate!.day &&
             (dp.xAxis as DateTime).hour == widget.selectedDate!.hour);
-      } else if (_currentBezierChartScale == BezierChartScale.monthly) {
+      } else if (_currentBezierChartScale == BezierChartScale.weeklyPeriod) {
+        index = _xAxisDataPoints.indexWhere((dp) =>
+        (dp.xAxis as DateTime).year == widget.selectedDate!.year &&
+            (dp.xAxis as DateTime).month == widget.selectedDate!.month &&
+            (dp.xAxis as DateTime).day == widget.selectedDate!.day
+        );
+      }
+      else if (_currentBezierChartScale == BezierChartScale.monthly) {
         index = _xAxisDataPoints.indexWhere((dp) =>
             (dp.xAxis as DateTime).year == widget.selectedDate!.year &&
             (dp.xAxis as DateTime).month == widget.selectedDate!.month);
@@ -493,6 +525,7 @@ class BezierChartState extends State<BezierChart>
     if (_currentBezierChartScale == BezierChartScale.monthly ||
         _currentBezierChartScale == BezierChartScale.yearly ||
         _currentBezierChartScale == BezierChartScale.weekly ||
+        _currentBezierChartScale == BezierChartScale.weeklyPeriod ||
         _currentBezierChartScale == BezierChartScale.hourly) {
       for (BezierLine line in widget.series) {
         Map<String, List<double>> tmpMap = {};
@@ -503,7 +536,12 @@ class BezierChartState extends State<BezierChart>
                 "${dataPoint.xAxis.year},${dataPoint.xAxis.month.toString().padLeft(2, '0')}";
           } else if (_currentBezierChartScale == BezierChartScale.yearly) {
             key = "${dataPoint.xAxis.year}";
-          } else if (_currentBezierChartScale == BezierChartScale.weekly) {
+          }
+          if (_currentBezierChartScale == BezierChartScale.weeklyPeriod) {
+            key =
+            "${dataPoint.xAxis.year},${dataPoint.xAxis.month.toString().padLeft(2, '0')},${dataPoint.xAxis.day.toString().padLeft(2, '0')}";
+          }
+          else if (_currentBezierChartScale == BezierChartScale.weekly) {
             key =
                 "${dataPoint.xAxis.year},${dataPoint.xAxis.month.toString().padLeft(2, '0')},${dataPoint.xAxis.day.toString().padLeft(2, '0')}";
           } else {
@@ -578,7 +616,20 @@ class BezierChartState extends State<BezierChart>
                 xAxis: date,
               ),
             );
-          } else if (_currentBezierChartScale == BezierChartScale.weekly) {
+          }else if (_currentBezierChartScale == BezierChartScale.weeklyPeriod) {
+            List<String> split = key.split(",");
+            int year = int.parse(split[0]);
+            int month = int.parse(split[1]);
+            int day = int.parse(split[2]);
+            final date = DateTime(year, month, day);
+            newDataPoints.add(
+              DataPoint<DateTime>(
+                value: value!,
+                xAxis: date,
+              ),
+            );
+          }
+          else if (_currentBezierChartScale == BezierChartScale.weekly) {
             List<String> split = key.split(",");
             int year = int.parse(split[0]);
             int month = int.parse(split[1]);
@@ -641,6 +692,8 @@ class BezierChartState extends State<BezierChart>
         lastScale = BezierChartScale.monthly;
       } else if (_currentBezierChartScale == BezierChartScale.yearly) {
         lastScale = BezierChartScale.yearly;
+      } else if (_currentBezierChartScale == BezierChartScale.weeklyPeriod) {
+        lastScale = BezierChartScale.weeklyPeriod;
       }
 
       //when the scale is below 1 then we'll try to change the chart scale depending of the `_currentBezierChartScale`
@@ -650,6 +703,9 @@ class BezierChartState extends State<BezierChart>
           _previousScale = 1.5;
         } else if (_currentBezierChartScale == BezierChartScale.monthly) {
           _currentBezierChartScale = BezierChartScale.yearly;
+        }
+        else if (_currentBezierChartScale == BezierChartScale.weeklyPeriod) {
+          _currentBezierChartScale = BezierChartScale.monthly;
         }
         _currentScale = 1.0;
         setState(
@@ -1539,7 +1595,30 @@ class _BezierChartPainter extends CustomPainter {
       } else {
         return "${dateFormat.format(_currentXDataPoint!.xAxis)}\n";
       }
-    } else if (scale == BezierChartScale.monthly) {
+    } else if (scale == BezierChartScale.weeklyPeriod) {
+      final dateFormat = intl.DateFormat('w');
+      final date = _currentXDataPoint!.xAxis as DateTime;
+      final now = DateTime.now();
+      if (areEqualDates(date, now)) {
+        return "Current\n";
+      } else {
+        //week number of the year
+        var date = _currentXDataPoint!.xAxis as DateTime;
+
+        // ISO 8601 week date
+        // Find the nearest Thursday: needed to determine the first week
+        var thursday = date.subtract(Duration(days: (date.weekday + 5) % 7 - 3));
+
+        // January 4th is always in week 1
+        var firstThursday = DateTime(thursday.year, 1, 4);
+
+        // Week number is the number of weeks between the first Thursday and this Thursday
+        var weekNumber = ((thursday.difference(firstThursday).inDays / 7).ceil() + 1);
+
+        return weekNumber.toString();
+      }
+    }
+    else if (scale == BezierChartScale.monthly) {
       final dateFormat = intl.DateFormat('MMM y');
       final date = _currentXDataPoint!.xAxis as DateTime;
       final now = DateTime.now();
@@ -1577,6 +1656,21 @@ class _BezierChartPainter extends CustomPainter {
     } else if (scale == BezierChartScale.weekly) {
       final dateFormat = intl.DateFormat('EEE\nd');
       return dateFormat.format(dataPoint.xAxis as DateTime);
+    } else if (scale == BezierChartScale.weeklyPeriod) {
+      //week number of the year
+      var date = dataPoint.xAxis as DateTime;
+
+      // ISO 8601 week date
+      // Find the nearest Thursday: needed to determine the first week
+      var thursday = date.subtract(Duration(days: (date.weekday + 5) % 7 - 3));
+
+      // January 4th is always in week 1
+      var firstThursday = DateTime(thursday.year, 1, 4);
+
+      // Week number is the number of weeks between the first Thursday and this Thursday
+      var weekNumber = ((thursday.difference(firstThursday).inDays / 7).ceil() + 1);
+
+      return weekNumber.toString();
     } else if (scale == BezierChartScale.monthly) {
       final dateFormat = intl.DateFormat('MMM');
       final dateFormatYear = intl.DateFormat('y');
